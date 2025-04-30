@@ -29,6 +29,8 @@ class train_config:
     use_autocast: bool = True
     val_batch_size: int = 1
     dataset = "samsum_dataset"
+    chunked_training_for_generation = False
+    chunk_size = 512
     task_type = "generation"  # "generation" / "seq_classification"
     peft_method: str = "lora"
     use_peft: bool = True  # use parameter efficient fine tuning

@@ -17,6 +17,7 @@ import torch.distributed as dist
 import torchmetrics
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+from transformers import DynamicCache
 
 from QEfficient.finetune.configs.training import train_config as TRAIN_CONFIG
 
@@ -199,13 +200,49 @@ def train(
                             acc_helper.forward(preds, labels)
                     print("Mismatches detected:", verifier.get_perop_mismatch_count())
                 else:
-                    model_outputs = model(**batch)
-                    loss = model_outputs.loss  # Forward call
-                    if train_config.task_type == "seq_classification":
-                        logits = model_outputs.logits
-                        labels = batch["labels"][:, 0]
-                        preds = torch.nn.functional.softmax(logits, dim=-1)
-                        acc_helper.forward(preds, labels)
+                    if train_config.chunked_training_for_generation and train_config.task_type == "generation":
+                        chunk_size = train_config.chunk_size
+
+                        pos_ids = (
+                            torch.arange(batch["input_ids"].shape[1])
+                            .reshape(batch["input_ids"].shape[0], -1)
+                            .to(batch["input_ids"].device)
+                        )
+
+                        input_ids_chunks = torch.split(batch["input_ids"], chunk_size, dim=1)
+                        pos_ids_chunks = torch.split(pos_ids, chunk_size, dim=1)
+                        labels_chunks = torch.split(batch["labels"], chunk_size, dim=1)
+                        ignore_label = -100
+                        past_key_values = DynamicCache()
+                        loss = 0
+                        total_labels = 0
+                        for i in range(len(input_ids_chunks)):
+                            model_outputs = model(
+                                input_ids=input_ids_chunks[i],
+                                position_ids=pos_ids_chunks[i],
+                                attention_mask=batch["attention_mask"][:, 0 : (i + 1) * chunk_size],
+                                labels=labels_chunks[i],
+                                past_key_values=past_key_values,
+                                use_cache=True,
+                            )
+                            past_key_values = model_outputs.past_key_values
+
+                            if torch.sum(labels_chunks[i] == ignore_label) == labels_chunks[i].shape[1]:
+                                continue
+                            chunk_label_cnt = torch.sum(labels_chunks[i] != ignore_label)
+                            total_labels += chunk_label_cnt
+                            chunked_loss = model_outputs.loss  # Forward call
+                            loss += chunked_loss * chunk_label_cnt
+                        # loss is sum of all the valid labels. Divide the cummulative loss by valid number of labels.
+                        loss /= total_labels
+                    else:
+                        model_outputs = model(**batch)
+                        loss = model_outputs.loss  # Forward call
+                        if train_config.task_type == "seq_classification":
+                            logits = model_outputs.logits
+                            labels = batch["labels"][:, 0]
+                            preds = torch.nn.functional.softmax(logits, dim=-1)
+                            acc_helper.forward(preds, labels)
 
             total_loss += loss.detach().float()
             # Accumalate graidents
