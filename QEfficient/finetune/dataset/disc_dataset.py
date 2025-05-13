@@ -6,49 +6,47 @@
 # -----------------------------------------------------------------------------
 
 
-from itertools import chain
-
 import datasets
 
 
 def get_preprocessed_disc(dataset_config, tokenizer, split, context_length=None):
     dataset = datasets.load_dataset("hallisky/DiSC")
-    
+
     # Considering 'train' split as this dataset has only one split.
-    dataset = dataset['train']
-    
+    dataset = dataset["train"]
+
     test_split_ratio = dataset_config.test_split_ratio
     disc_style = dataset_config.disc_style
-    
+
     # Only collect the samples for a given style.
     available_styles = set(dataset["category"])
     if disc_style not in available_styles:
         raise RuntimeError(f"For DiSC dataset the provided disc_stype '{disc_style}' is not supported.")
 
     dataset = dataset.filter(lambda example: example["category"] == disc_style)
-    
+
     # Shuffle the dataset before splitting
     dataset = dataset.shuffle(seed=42)
 
     # Split the data in train and test split.
-    total_samples = len(dataset)    
+    total_samples = len(dataset)
     test_size = int(total_samples * test_split_ratio)
     train_size = total_samples - test_size
-    
+
     if split == "test":
         indices = range(train_size, total_samples)
     else:
         indices = range(0, train_size)
 
     dataset = dataset.select(indices)
-    
+
     if tokenizer.pad_token is None:
         tokenizer.add_special_tokens({"pad_token": "[PAD]"})
 
     # Below is the template of the DiSC dataset.
     # <bos>### Original:{original} \n ### Rewrite: {rewrite} <eos>
     template = "### Original:{original} \n ### Rewrite: "
-    
+
     def apply_prompt_template(sample):
         return {
             "input": template.format(original=sample["original"]),

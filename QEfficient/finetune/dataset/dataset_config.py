@@ -14,6 +14,7 @@ from QEfficient.finetune.dataset.custom_dataset import (
     get_custom_dataset,
     get_data_collator,
 )
+from QEfficient.finetune.dataset.disc_dataset import get_preprocessed_disc as get_disc_dataset
 from QEfficient.finetune.dataset.grammar_dataset import (
     get_dataset as get_grammar_dataset,
 )
@@ -23,9 +24,6 @@ from QEfficient.finetune.dataset.imdb_dataset import (
 )
 from QEfficient.finetune.dataset.samsum_dataset import (
     get_preprocessed_samsum as get_samsum_dataset,
-)
-from QEfficient.finetune.dataset.disc_dataset import (
-    get_preprocessed_disc as get_disc_dataset
 )
 
 DATASET_PREPROC = {
