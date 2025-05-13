@@ -39,6 +39,15 @@ class imdb_dataset:
 
 
 @dataclass
+class disc_dataset:
+    dataset: str = "disc_dataset"
+    train_split: str = "train"
+    test_split: str = "test"
+    disc_style: str = "sarcasm_more"
+    test_split_ratio: float = 0.2
+
+
+@dataclass
 class custom_dataset:
     dataset: str = "custom_dataset"
     file: str = "dataset/custom_dataset.py"

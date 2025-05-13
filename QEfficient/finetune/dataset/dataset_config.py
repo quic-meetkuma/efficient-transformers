@@ -21,6 +21,9 @@ from QEfficient.finetune.dataset.gsm8k_dataset import get_gsm8k_dataset
 from QEfficient.finetune.dataset.imdb_dataset import (
     get_preprocessed_imdb as get_imdb_dataset,
 )
+from QEfficient.finetune.dataset.disc_dataset import (
+    get_preprocessed_disc as get_disc_dataset
+)
 
 DATASET_PREPROC = {
     "alpaca_dataset": partial(get_alpaca_dataset),
@@ -28,6 +31,7 @@ DATASET_PREPROC = {
     "gsm8k_dataset": get_gsm8k_dataset,
     "custom_dataset": get_custom_dataset,
     "imdb_dataset": get_imdb_dataset,
+    "disc_dataset": get_disc_dataset,
 }
 DATALOADER_COLLATE_FUNC = {
     "custom_dataset": get_data_collator,
