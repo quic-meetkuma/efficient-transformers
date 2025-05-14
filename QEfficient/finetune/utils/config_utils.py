@@ -7,7 +7,6 @@
 import inspect
 import json
 import os
-from dataclasses import asdict
 from typing import Any, Dict
 
 import torch.distributed as dist
@@ -90,7 +89,7 @@ def generate_peft_config(train_config: TrainConfig, peft_config_file: str = None
         else:
             config = config_cls()
             update_config(config, **kwargs)
-            params = asdict(config)
+            params = config.to_dict()
 
         peft_config = peft_config_cls(**params)
     return peft_config
@@ -157,14 +156,14 @@ def validate_config(config_data: Dict[str, Any], config_type: str = "lora") -> N
         FileNotFoundError: If the config file path is invalid (handled upstream).
 
     Notes:
-        - Validates required fields for LoraConfig: r, lora_alpha, target_modules.
+        - Validates required fields for LoraConfig: lora_r, lora_alpha, target_modules.
         - Ensures types match expected values (int, float, list, etc.).
     """
     if config_type.lower() != "lora":
         raise ValueError(f"Unsupported config_type: {config_type}. Only 'lora' is supported.")
 
     required_fields = {
-        "r": int,
+        "lora_r": int,
         "lora_alpha": int,
         "target_modules": list,
     }
