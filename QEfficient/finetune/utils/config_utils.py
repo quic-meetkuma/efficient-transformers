@@ -8,7 +8,6 @@
 import inspect
 import json
 import os
-from dataclasses import asdict
 from typing import Any, Dict
 
 import yaml
@@ -80,7 +79,7 @@ def generate_peft_config(train_config: TrainConfig, **kwargs) -> Any:
         else:
             config = config_cls()
             update_config(config, **kwargs)
-            params = asdict(config)
+            params = config.to_dict()
 
         peft_config = peft_config_cls(**params)
     return peft_config
@@ -117,14 +116,14 @@ def validate_config(config_data: Dict[str, Any], config_type: str = Peft_Method.
         FileNotFoundError: If the config file path is invalid (handled upstream).
 
     Notes:
-        - Validates required fields for LoraConfig: r, lora_alpha, target_modules.
+        - Validates required fields for LoraConfig: lora_r, lora_alpha, target_modules.
         - Ensures types match expected values (int, float, list, etc.).
     """
     if config_type.lower() != Peft_Method.LORA:
         logger.raise_error(f"Unsupported config_type: {config_type}. Only 'lora' is supported.", ValueError)
 
     required_fields = {
-        "r": int,
+        "lora_r": int,
         "lora_alpha": int,
         "target_modules": list,
     }

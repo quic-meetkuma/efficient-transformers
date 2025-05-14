@@ -44,7 +44,7 @@ class disc_dataset:
     train_split: str = "train"
     test_split: str = "test"
     disc_style: str = "sarcasm_more"
-    test_split_ratio: float = 0.2
+    test_split_ratio: float = 0.15
 
 
 @dataclass
