@@ -18,8 +18,6 @@ from torch.utils.data import DataLoader
 import QEfficient
 import QEfficient.cloud.finetune
 from QEfficient.cloud.finetune import main as finetune
-from pathlib import Path
-import requests
 
 alpaca_json_path = Path.cwd() / "alpaca_data.json"
 
