@@ -18,6 +18,10 @@ from torch.utils.data import DataLoader
 import QEfficient
 import QEfficient.cloud.finetune
 from QEfficient.cloud.finetune import main as finetune
+from pathlib import Path
+import requests
+
+alpaca_json_path = Path.cwd() / "alpaca_data.json"
 
 alpaca_json_path = Path.cwd() / "alpaca_data.json"
 
@@ -43,6 +47,24 @@ configs = [
         "generation",  # task_type
         10,  # max_eval_step
         20,  # max_train_step
+        "samsum_dataset",  # dataset_name
+        None,  # data_path
+        1,  # intermediate_step_save
+        None,  # context_length
+        True,  # run_validation
+        True,  # use_peft
+        "qaic",  # device
+        0.00232291,  # expected_train_loss
+        1.00232565,  # expected_train_metric
+        0.02060609,  # expected_eval_loss
+        1.02081990,  # expected_eval_metric
+        id="llama_config",  # config name
+    ),
+    pytest.param(
+        "meta-llama/Llama-3.2-1B",  # model_name
+        "generation",  # task_type
+        10,  # max_eval_step
+        20,  # max_train_step
         "gsm8k_dataset",  # dataset_name
         None,  # data_path
         1,  # intermediate_step_save
@@ -54,7 +76,7 @@ configs = [
         1.0043447,  # expected_train_metric
         0.0117334,  # expected_eval_loss
         1.0118025,  # expected_eval_metric
-        id="llama_config_gsm8k",  # config name
+        id="llama_config",  # config name
     ),
     pytest.param(
         "meta-llama/Llama-3.2-1B",  # model_name
@@ -72,7 +94,7 @@ configs = [
         1.0006101,  # expected_train_metric
         0.0065296,  # expected_eval_loss
         1.0065510,  # expected_eval_metric
-        id="llama_config_alpaca",  # config name
+        id="llama_config",  # config name
     ),
     pytest.param(
         "google-bert/bert-base-uncased",  # model_name
@@ -90,7 +112,7 @@ configs = [
         0.55554199,  # expected_train_metric
         0.00738618,  # expected_eval_loss
         0.70825195,  # expected_eval_metric
-        id="bert_config_imdb",  # config name
+        id="bert_config",  # config name
     ),
 ]
 
@@ -149,16 +171,17 @@ def test_finetune_llama(
         download_alpaca()
 
     results = finetune(**kwargs)
-    assert np.allclose(results["avg_train_loss"], expected_train_loss, atol=1e-3), "Train loss is not matching."
-    assert np.allclose(results["avg_train_metric"], expected_train_metric, atol=1e-3), "Train metric is not matching."
-    assert np.allclose(results["avg_eval_loss"], expected_eval_loss, atol=1e-3), "Eval loss is not matching."
-    assert np.allclose(results["avg_eval_metric"], expected_eval_metric, atol=1e-3), "Eval metric is not matching."
+    assert np.allclose(results["avg_train_loss"], expected_train_loss, atol=1e-5), "Train loss is not matching."
+    assert np.allclose(results["avg_train_metric"], expected_train_metric, atol=1e-5), "Train metric is not matching."
+    assert np.allclose(results["avg_eval_loss"], expected_eval_loss, atol=1e-5), "Eval loss is not matching."
+    assert np.allclose(results["avg_eval_metric"], expected_eval_metric, atol=1e-5), "Eval metric is not matching."
     assert results["avg_epoch_time"] < 60, "Training should complete within 60 seconds."
 
     train_config_spy.assert_called_once()
     generate_dataset_config_spy.assert_called_once()
     if task_type == "generation":
         generate_peft_config_spy.assert_called_once()
+    get_custom_data_collator_spy.assert_called_once()
     get_longest_seq_length_spy.assert_called_once()
     print_model_size_spy.assert_called_once()
     train_spy.assert_called_once()
