@@ -24,45 +24,68 @@ def load_module_from_py_file(py_file: str) -> object:
 
 
 def get_custom_dataset(dataset_config, tokenizer, split: str, context_length=None):
-    if ":" in dataset_config.file:
-        module_path, func_name = dataset_config.file.split(":")
+    if not hasattr(dataset_config, "preproc_file"):
+        raise RuntimeError("Can not find preproc_file key in dataset_config file.")
+
+    if ":" in dataset_config.preproc_file:
+        module_path, func_name = dataset_config.preproc_file.split(":")
     else:
-        module_path, func_name = dataset_config.file, "get_custom_dataset"
+        module_path, func_name = dataset_config.preproc_file, "get_custom_dataset"
+        print(
+            f"Using '{func_name}' function from "
+            f"{dataset_config.preproc_file} as preprocessing function in "
+            "dataset preprocessing."
+        )
 
     if not module_path.endswith(".py"):
-        raise ValueError(f"Dataset file {module_path} is not a .py file.")
+        raise ValueError(f"Custom dataset preprocessing file {module_path} is not a .py file.")
 
     module_path = Path(module_path)
     if not module_path.is_file():
-        raise FileNotFoundError(f"Dataset py file {module_path.as_posix()} does not exist or is not a file.")
+        raise FileNotFoundError(f"Custom dataset file {module_path.as_posix()} does not exist or is not a file.")
 
     module = load_module_from_py_file(module_path.as_posix())
     try:
         return getattr(module, func_name)(dataset_config, tokenizer, split, context_length)
     except AttributeError as e:
         print(
-            f"It seems like the given method name ({func_name}) is not present in the dataset .py file ({module_path.as_posix()})."
+            f"For custom dataset preprocessing, the method ({func_name}) is not "
+            f"present in the file ({module_path.as_posix()})."
         )
         raise e
 
 
 def get_data_collator(dataset_processer, dataset_config):
-    if ":" in dataset_config.file:
-        module_path, func_name = dataset_config.file.split(":")
+    if not hasattr(dataset_config, "collate_file"):
+        print(
+            f"Can not find collate_file key in dataset_config file. Using the default data collator function instead."
+        )
+        return None
+
+    if ":" in dataset_config.collate_file:
+        module_path, func_name = dataset_config.collate_file.split(":")
     else:
-        module_path, func_name = dataset_config.file, "get_data_collator"
+        module_path, func_name = dataset_config.collate_file, "get_data_collator"
+        print(
+            f"Using '{func_name}' function from {dataset_config.collate_file} as collate_fn in dataset preprocessing."
+        )
 
     if not module_path.endswith(".py"):
-        raise ValueError(f"Dataset file {module_path} is not a .py file.")
+        raise ValueError(f"Custom dataset collate file {module_path} is not a .py file.")
 
     module_path = Path(module_path)
     if not module_path.is_file():
-        raise FileNotFoundError(f"Dataset py file {module_path.as_posix()} does not exist or is not a file.")
+        raise FileNotFoundError(
+            f"Custom dataset collate file {module_path.as_posix()} does not exist or is not a file."
+        )
 
     module = load_module_from_py_file(module_path.as_posix())
     try:
         return getattr(module, func_name)(dataset_processer)
     except AttributeError:
-        print(f"Can not find the custom data_collator in the dataset.py file ({module_path.as_posix()}).")
-        print("Using the default data_collator instead.")
+        print(
+            f"Can not find the function {func_name} in file "
+            f"({module_path.as_posix()}). Using the default data collator "
+            "function instead."
+        )
         return None

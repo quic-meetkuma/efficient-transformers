@@ -20,6 +20,7 @@ from torch.optim.lr_scheduler import StepLR
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
 from QEfficient.finetune.configs.training import TrainConfig
+from QEfficient.finetune.utils.helper import parse_unk_args
 from QEfficient.finetune.utils.config_utils import (
     generate_dataset_config,
     generate_peft_config,
@@ -85,7 +86,7 @@ def setup_seeds(seed: int) -> None:
 
 
 def load_model_and_tokenizer(
-    train_config: TrainConfig, dataset_config: Any, peft_config_file: str, **kwargs
+    train_config: TrainConfig, dataset_config: Any, peft_config_file: Optional[str] = None, **kwargs
 ) -> tuple[AutoModelForCausalLM, AutoTokenizer]:
     """Load the pre-trained model and tokenizer from Hugging Face.
 
@@ -111,7 +112,7 @@ def load_model_and_tokenizer(
         model = AutoModelForSequenceClassification.from_pretrained(
             pretrained_model_path,
             num_labels=dataset_config.num_labels,
-            attn_implementation="sdpa",
+            attn_implementation="eager",
             torch_dtype=torch.float16,
         )
 
@@ -128,7 +129,7 @@ def load_model_and_tokenizer(
         model = AutoModelForCausalLM.from_pretrained(
             pretrained_model_path,
             use_cache=False,
-            attn_implementation="sdpa",
+            attn_implementation="eager",
             torch_dtype=torch.float16,
         )
 
@@ -246,13 +247,13 @@ def setup_dataloaders(
     return train_dataloader, eval_dataloader, longest_seq_length
 
 
-def main(peft_config_file: str = None, **kwargs) -> None:
+def main(**kwargs) -> None:
     """
     Fine-tune a model on QAIC hardware with configurable training and LoRA parameters.
 
     Args:
-        peft_config_file (str, optional): Path to YAML/JSON file containing PEFT (LoRA) config. Defaults to None.
-        kwargs: Additional arguments to override TrainConfig.
+        kwargs: Keyword arguments fetched from CLI to override train config, 
+            dataset config and peft config params.
 
     Example:
         .. code-block:: bash
@@ -268,14 +269,14 @@ def main(peft_config_file: str = None, **kwargs) -> None:
                 --model_name "meta-llama/Llama-3.2-1B" \\
                 --lr 5e-4
     """
-    # TODO:Remove TrainConfig() and update_config() as all params are passed in kwargs by parser
     train_config = TrainConfig()
     update_config(train_config, **kwargs)
-    dataset_config = generate_dataset_config(train_config.dataset)
-    update_config(dataset_config, **kwargs)
+    dataset_config_file = kwargs.pop("dataset_config", None)
+    dataset_config = generate_dataset_config(train_config.dataset, dataset_config_file)
 
     setup_distributed_training(train_config)
     setup_seeds(train_config.seed)
+    peft_config_file = kwargs.pop("peft_config_file", None)
     model, tokenizer = load_model_and_tokenizer(train_config, dataset_config, peft_config_file, **kwargs)
 
     # Create DataLoaders for the training and validation dataset
@@ -308,6 +309,7 @@ def main(peft_config_file: str = None, **kwargs) -> None:
 
 if __name__ == "__main__":
     parser = get_finetune_parser()
-    args = parser.parse_args()
+    args, unk_args = parser.parse_known_args()
+    unk_args_dict = parse_unk_args(unk_args)
     args_dict = vars(args)
-    main(**args_dict)
+    main(**args_dict, **unk_args_dict)
